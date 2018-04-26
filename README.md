@@ -12,6 +12,8 @@ Introduction
 * POLARION_PASSWORD
 * POLARION_URL
 
+**NOTE**: Polarizer supports Python 3 exclusively
+
 Installation
 ------------
 
