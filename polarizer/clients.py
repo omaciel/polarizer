@@ -2,7 +2,10 @@ import ssl
 import suds
 
 from suds.client import Client
+from suds.plugin import MessagePlugin
+from suds.sax.attribute import Attribute
 from suds.transport.https import HttpAuthenticated
+
 from urllib.request import HTTPSHandler
 
 from polarizer.constants import (
@@ -29,9 +32,28 @@ class CustomTransport(HttpAuthenticated):
         return handlers
 
 
+class SoapNull(MessagePlugin):
+    """Add a xsi:nil=true attribute to any element that is blank.
+    Without this plugin, a number of functions that were supposed to accept
+    null parameters did not work.
+    """
+    def marshalled(self, context):
+        # Go through every node in the document and check if it is empty and
+        # if so set the xsi:nil tag to true
+        context.envelope.walk(self.add_nil)
+
+    def add_nil(self, element):
+        """Used as a filter function with walk to add xsi:nil to blank attrs.
+        """
+        if element.isempty() and not element.isnil():
+            element.attributes.append(Attribute('xsi:nil', 'true'))
+
+
 def PlanClient(config):
     client = Client(
-        URLBuilder(config.server, PLAN_WSDL), transport=CustomTransport())
+        url=URLBuilder(config.server, PLAN_WSDL),
+        plugins=[SoapNull()],
+        transport=CustomTransport())
     client.set_options(
         soapheaders=SessionClient(
             config.server, config.username, config.password))
@@ -40,7 +62,8 @@ def PlanClient(config):
 
 def SessionClient(server, username, password):
     client = Client(
-        URLBuilder(server, SESSION_WSDL),
+        url=URLBuilder(server, SESSION_WSDL),
+        plugins=[SoapNull()],
         transport=CustomTransport())
     client.service.logIn(username, password)
     session = client.last_received().childAtPath(
@@ -54,7 +77,9 @@ def SessionClient(server, username, password):
 
 def TrackerClient(config):
     client = Client(
-        URLBuilder(config.server, TRACKER_WSDL), transport=CustomTransport())
+        url=URLBuilder(config.server, TRACKER_WSDL),
+        plugins=[SoapNull()],
+        transport=CustomTransport())
     client.set_options(
         soapheaders=SessionClient(
             config.server, config.username, config.password))
